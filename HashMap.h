@@ -99,6 +99,50 @@ namespace myHashMap {
             }
         }
 
+        template <class AnchorType>
+        class iterator_base_ {
+        friend class HashMap;
+
+         protected:
+            size_t index;
+            AnchorType* anchor;
+
+            void iterate_forward_() {
+                while (index < anchor->data.size() &&
+                    (anchor->isEmpty[index] || anchor->isRemoved[index]))
+                        index++;
+                if (index >= anchor->data.size())
+                    index = anchor->data.size();
+            }
+
+         public:
+            iterator_base_(): index(0), anchor(nullptr) {}
+
+            iterator_base_(AnchorType& anchor_, size_t index_):
+                index(index_), anchor(&anchor_) {}
+
+            iterator_base_& operator ++() {
+                index++;
+                iterate_forward_();
+                return *this;
+            }
+
+            iterator_base_ operator ++(int) {
+                auto tmp(*this);
+                index++;
+                iterate_forward_();
+                return tmp;
+            }
+
+            bool operator == (const iterator_base_& other) const {
+                return index == other.index && (anchor) == (other.anchor);
+            }
+
+            bool operator != (const iterator_base_& other) const {
+                return !(*this == other);
+            }
+        };
+
      public:
         explicit HashMap(Hasher hasher = Hasher()):
             capacity(0), presentSize(0), filled(0), hasher(hasher) {}
@@ -115,26 +159,13 @@ namespace myHashMap {
         HashMap(const std::initializer_list<std::pair<KeyType, ValueType>>& list,
             Hasher hasher = Hasher()): HashMap(list.begin(), list.end(), hasher) {}
 
-        class iterator {
-        friend class HashMap<KeyType, ValueType, Hasher>;
-         private:
-            HashMap<KeyType, ValueType, Hasher>* anchor;
-            size_t index;
-
-            void iterate_forward_() {
-                while (index < anchor->data.size() &&
-                    (anchor->isEmpty[index] || anchor->isRemoved[index]))
-                        index++;
-                if (index >= anchor->data.size())
-                    index = anchor->data.size();
-            }
+        class iterator : public iterator_base_<HashMap<KeyType, ValueType, Hasher>> {
+        friend class HashMap;
+        using iterator_base_<HashMap<KeyType, ValueType, Hasher>>::anchor;
+        using iterator_base_<HashMap<KeyType, ValueType, Hasher>>::index;
+        using iterator_base_<HashMap<KeyType, ValueType, Hasher>>::iterator_base_;
 
          public:
-            iterator(): anchor(nullptr), index(0) {}
-
-            iterator(HashMap<KeyType, ValueType, Hasher>& anchor, size_t index):
-                anchor(&anchor), index(index) {}
-
             std::pair<const KeyType, ValueType>& operator *() {
                 return reinterpret_cast<std::pair<const KeyType, ValueType>&>(anchor->data[index]);
             }
@@ -142,81 +173,23 @@ namespace myHashMap {
             std::pair<const KeyType, ValueType>* operator ->() {
                 return reinterpret_cast<std::pair<const KeyType, ValueType>*>(&anchor->data[index]);
             }
-
-            iterator& operator ++() {
-                index++;
-                iterate_forward_();
-                return *this;
-            }
-
-            iterator operator ++(int) {
-                auto tmp(*this);
-                index++;
-                iterate_forward_();
-                return tmp;
-            }
-
-            bool operator == (const iterator& other) const {
-                return index == other.index && (anchor) == (other.anchor);
-            }
-
-            bool operator != (const iterator& other) const {
-                return !(*this == other);
-            }
         };
 
-        class const_iterator {
-        friend class HashMap<KeyType, ValueType, Hasher>;
-         private:
-            const HashMap<KeyType, ValueType, Hasher>* anchor;
-            size_t index;
-
-            void iterate_forward_() {
-                while (index < anchor->data.size() &&
-                    (anchor->isEmpty[index] || anchor->isRemoved[index]))
-                        index++;
-                if (index >= anchor->data.size())
-                    index = anchor->data.size();
-            }
+        class const_iterator : public iterator_base_<const HashMap<KeyType, ValueType, Hasher>> {
+        friend class HashMap;
+        using iterator_base_<const HashMap<KeyType, ValueType, Hasher>>::anchor;
+        using iterator_base_<const HashMap<KeyType, ValueType, Hasher>>::index;
+        using iterator_base_<const HashMap<KeyType, ValueType, Hasher>>::iterator_base_;
 
          public:
-            const_iterator(): anchor(nullptr), index(0) {}
-
-            const_iterator(const HashMap<KeyType, ValueType, Hasher>& anchor, size_t index):
-                anchor(&anchor), index(index) {}
-
-            const_iterator(const const_iterator& other):
-                anchor(other.anchor), index(other.index) {}
-
             const std::pair<const KeyType, ValueType>& operator *() {
-                return reinterpret_cast<const std::pair<const KeyType, ValueType>&>(
-                    anchor->data[index]);
+                return reinterpret_cast
+                    <const std::pair<const KeyType, ValueType>&>(anchor->data[index]);
             }
 
             const std::pair<const KeyType, ValueType>* operator ->() {
-                return reinterpret_cast<const std::pair<const KeyType, ValueType>*>(
-                    &anchor->data[index]);
-            }
-
-            const_iterator& operator ++() {
-                index++;
-                iterate_forward_();
-                return *this;
-            }
-
-            const_iterator operator ++(int) {
-                auto tmp(*this);
-                index++;
-                iterate_forward_();
-                return tmp;
-            }
-
-            bool operator == (const const_iterator& other) const {
-                return index == other.index && (anchor) == (other.anchor);
-            }
-
-            bool operator != (const const_iterator& other) const {
-                return !(*this == other);
+                return reinterpret_cast
+                    <const std::pair<const KeyType, ValueType>*>(&anchor->data[index]);
             }
         };
 
