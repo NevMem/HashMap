@@ -31,12 +31,12 @@ namespace myHashMap {
             const KeyType& key, const ValueType& value) {
                 size_t indexToInsert = get_index_(key, destination.size());
                 while (!isEmpty[indexToInsert]) {
-                    if (isRemoved[indexToInsert] && destination[indexToInsert].first == key) {
-                        isRemoved[indexToInsert] = false;
-                        destination[indexToInsert].second = value;
-                        return true;
-                    }
                     if (destination[indexToInsert].first == key) {
+                        if (isRemoved[indexToInsert]) {
+                            isRemoved[indexToInsert] = false;
+                            destination[indexToInsert].second = value;
+                            return true;
+                        }
                         return false;
                     }
                     indexToInsert++;
@@ -93,7 +93,8 @@ namespace myHashMap {
         void insert_(const KeyType& key, const ValueType& value) {
             if (need_rehash_())
                 rehash_();
-            if (insert_to_(data, isEmpty, isRemoved, key, value)) {
+            bool wasInsertion = insert_to_(data, isEmpty, isRemoved, key, value);
+            if (wasInsertion) {
                 filled++;
                 presentSize++;
             }
@@ -101,48 +102,46 @@ namespace myHashMap {
 
         template <class DataArrayType>
         class iterator_base_ {
-        friend class HashMap;
-
          protected:
-            size_t index;
-            DataArrayType* data;
-            const std::vector<bool>* empty;
-            const std::vector<bool>* removed;
+            size_t index_;
+            DataArrayType* data_;
+            const std::vector<bool>* empty_;
+            const std::vector<bool>* removed_;
 
             void iterate_forward_() {
-                while (index < data->size() &&
-                    ((*empty)[index] || (*removed)[index]))
-                        index++;
-                if (index >= data->size())
-                    index = data->size();
+                while (index_ < data_->size() &&
+                    ((*empty_)[index_] || (*removed_)[index_]))
+                        index_++;
+                if (index_ >= data_->size())
+                    index_ = data_->size();
             }
 
          public:
             iterator_base_():
-                index(0), data(nullptr), empty(nullptr), removed(nullptr) {}
+                index_(0), data_(nullptr), empty_(nullptr), removed_(nullptr) {}
 
             iterator_base_(DataArrayType& data, size_t index,
                 const std::vector<bool>& empty, const std::vector<bool>& removed):
-                index(index), data(&data), empty(&empty), removed(&removed) {
+                index_(index), data_(&data), empty_(&empty), removed_(&removed) {
                     iterate_forward_();
                 }
 
             iterator_base_& operator ++() {
-                index++;
+                index_++;
                 iterate_forward_();
                 return *this;
             }
 
             iterator_base_ operator ++(int) {
                 auto tmp(*this);
-                index++;
+                index_++;
                 iterate_forward_();
                 return tmp;
             }
 
             bool operator == (const iterator_base_& other) const {
-                return index == other.index && data == other.data
-                    && empty == other.empty && removed == other.removed;
+                return index_ == other.index_ && data_ == other.data_
+                    && empty_ == other.empty_ && removed_ == other.removed_;
             }
 
             bool operator != (const iterator_base_& other) const {
@@ -169,36 +168,36 @@ namespace myHashMap {
         typedef std::vector<std::pair<KeyType, ValueType>> DataArrayType;
         class iterator : public iterator_base_<DataArrayType> {
         friend class HashMap;
-        using iterator_base_<DataArrayType>::data;
-        using iterator_base_<DataArrayType>::index;
+        using iterator_base_<DataArrayType>::data_;
+        using iterator_base_<DataArrayType>::index_;
         using iterator_base_<DataArrayType>::iterator_base_;
 
          public:
             std::pair<const KeyType, ValueType>& operator *() {
-                return reinterpret_cast<std::pair<const KeyType, ValueType>&>((*data)[index]);
+                return reinterpret_cast<std::pair<const KeyType, ValueType>&>((*data_)[index_]);
             }
 
             std::pair<const KeyType, ValueType>* operator ->() {
-                return reinterpret_cast<std::pair<const KeyType, ValueType>*>(&(*data)[index]);
+                return reinterpret_cast<std::pair<const KeyType, ValueType>*>(&(*data_)[index_]);
             }
         };
 
         typedef const std::vector<std::pair<KeyType, ValueType>> ConstDataArrayType;
         class const_iterator : public iterator_base_<ConstDataArrayType> {
         friend class HashMap;
-        using iterator_base_<ConstDataArrayType>::data;
-        using iterator_base_<ConstDataArrayType>::index;
+        using iterator_base_<ConstDataArrayType>::data_;
+        using iterator_base_<ConstDataArrayType>::index_;
         using iterator_base_<ConstDataArrayType>::iterator_base_;
 
          public:
             const std::pair<const KeyType, ValueType>& operator *() {
                 return reinterpret_cast
-                    <const std::pair<const KeyType, ValueType>&>((*data)[index]);
+                    <const std::pair<const KeyType, ValueType>&>((*data_)[index_]);
             }
 
             const std::pair<const KeyType, ValueType>* operator ->() {
                 return reinterpret_cast
-                    <const std::pair<const KeyType, ValueType>*>(&(*data)[index]);
+                    <const std::pair<const KeyType, ValueType>*>(&(*data_)[index_]);
             }
         };
 
@@ -225,7 +224,7 @@ namespace myHashMap {
         }
 
         ValueType& operator[](const KeyType& key) {
-            insert(std::pair<KeyType, ValueType>(key, ValueType()));
+            insert_(key, ValueType());
             size_t indexInData = find_(key);
             return data[indexInData].second;
         }
