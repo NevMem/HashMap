@@ -99,27 +99,33 @@ namespace myHashMap {
             }
         }
 
-        template <class AnchorType>
+        template <class DataArrayType>
         class iterator_base_ {
         friend class HashMap;
 
          protected:
             size_t index;
-            AnchorType* anchor;
+            DataArrayType* data;
+            const std::vector<bool>* empty;
+            const std::vector<bool>* removed;
 
             void iterate_forward_() {
-                while (index < anchor->data.size() &&
-                    (anchor->isEmpty[index] || anchor->isRemoved[index]))
+                while (index < data->size() &&
+                    ((*empty)[index] || (*removed)[index]))
                         index++;
-                if (index >= anchor->data.size())
-                    index = anchor->data.size();
+                if (index >= data->size())
+                    index = data->size();
             }
 
          public:
-            iterator_base_(): index(0), anchor(nullptr) {}
+            iterator_base_():
+                index(0), data(nullptr), empty(nullptr), removed(nullptr) {}
 
-            iterator_base_(AnchorType& anchor_, size_t index_):
-                index(index_), anchor(&anchor_) {}
+            iterator_base_(DataArrayType& data, size_t index,
+                const std::vector<bool>& empty, const std::vector<bool>& removed):
+                index(index), data(&data), empty(&empty), removed(&removed) {
+                    iterate_forward_();
+                }
 
             iterator_base_& operator ++() {
                 index++;
@@ -135,7 +141,8 @@ namespace myHashMap {
             }
 
             bool operator == (const iterator_base_& other) const {
-                return index == other.index && (anchor) == (other.anchor);
+                return index == other.index && data == other.data
+                    && empty == other.empty && removed == other.removed;
             }
 
             bool operator != (const iterator_base_& other) const {
@@ -159,37 +166,39 @@ namespace myHashMap {
         HashMap(const std::initializer_list<std::pair<KeyType, ValueType>>& list,
             Hasher hasher = Hasher()): HashMap(list.begin(), list.end(), hasher) {}
 
-        class iterator : public iterator_base_<HashMap<KeyType, ValueType, Hasher>> {
+        typedef std::vector<std::pair<KeyType, ValueType>> DataArrayType;
+        class iterator : public iterator_base_<DataArrayType> {
         friend class HashMap;
-        using iterator_base_<HashMap<KeyType, ValueType, Hasher>>::anchor;
-        using iterator_base_<HashMap<KeyType, ValueType, Hasher>>::index;
-        using iterator_base_<HashMap<KeyType, ValueType, Hasher>>::iterator_base_;
+        using iterator_base_<DataArrayType>::data;
+        using iterator_base_<DataArrayType>::index;
+        using iterator_base_<DataArrayType>::iterator_base_;
 
          public:
             std::pair<const KeyType, ValueType>& operator *() {
-                return reinterpret_cast<std::pair<const KeyType, ValueType>&>(anchor->data[index]);
+                return reinterpret_cast<std::pair<const KeyType, ValueType>&>((*data)[index]);
             }
 
             std::pair<const KeyType, ValueType>* operator ->() {
-                return reinterpret_cast<std::pair<const KeyType, ValueType>*>(&anchor->data[index]);
+                return reinterpret_cast<std::pair<const KeyType, ValueType>*>(&(*data)[index]);
             }
         };
 
-        class const_iterator : public iterator_base_<const HashMap<KeyType, ValueType, Hasher>> {
+        typedef const std::vector<std::pair<KeyType, ValueType>> ConstDataArrayType;
+        class const_iterator : public iterator_base_<ConstDataArrayType> {
         friend class HashMap;
-        using iterator_base_<const HashMap<KeyType, ValueType, Hasher>>::anchor;
-        using iterator_base_<const HashMap<KeyType, ValueType, Hasher>>::index;
-        using iterator_base_<const HashMap<KeyType, ValueType, Hasher>>::iterator_base_;
+        using iterator_base_<ConstDataArrayType>::data;
+        using iterator_base_<ConstDataArrayType>::index;
+        using iterator_base_<ConstDataArrayType>::iterator_base_;
 
          public:
             const std::pair<const KeyType, ValueType>& operator *() {
                 return reinterpret_cast
-                    <const std::pair<const KeyType, ValueType>&>(anchor->data[index]);
+                    <const std::pair<const KeyType, ValueType>&>((*data)[index]);
             }
 
             const std::pair<const KeyType, ValueType>* operator ->() {
                 return reinterpret_cast
-                    <const std::pair<const KeyType, ValueType>*>(&anchor->data[index]);
+                    <const std::pair<const KeyType, ValueType>*>(&(*data)[index]);
             }
         };
 
@@ -229,33 +238,27 @@ namespace myHashMap {
         }
 
         iterator begin() {
-            auto pseudo_begin = iterator(*this, 0);
-            pseudo_begin.iterate_forward_();
-            return pseudo_begin;
+            return iterator(data, 0, isEmpty, isRemoved);
         }
 
         iterator end() {
-            return iterator(*this, data.size());
+            return iterator(data, data.size(), isEmpty, isRemoved);
         }
 
         const_iterator begin() const {
-            auto pseudo_begin = const_iterator(*this, 0);
-            pseudo_begin.iterate_forward_();
-            return pseudo_begin;
+            return const_iterator(data, 0, isEmpty, isRemoved);
         }
 
         const_iterator end() const {
-            return const_iterator(*this, data.size());
+            return const_iterator(data, data.size(), isEmpty, isRemoved);
         }
 
         iterator find(const KeyType& key) {
-            size_t index = find_(key);
-            return iterator(*this, index);
+            return iterator(data, find_(key), isEmpty, isRemoved);
         }
 
         const_iterator find(const KeyType& key) const {
-            size_t index = find_(key);
-            return const_iterator(*this, index);
+            return const_iterator(data, find_(key), isEmpty, isRemoved);
         }
 
         void clear() {
