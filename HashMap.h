@@ -17,8 +17,16 @@ namespace myHashMap {
         std::vector<bool> isEmpty;
         std::vector<bool> isRemoved;
 
-        bool need_rehash_() const {
+        bool is_overflow_() const {
             return (filled + 1) * 2 > capacity;
+        }
+
+        bool is_underflow_() const {
+            return presentSize * 8 < capacity;
+        }
+
+        bool need_rehash_() const {
+            return is_overflow_() || is_underflow_();
         }
 
         size_t get_index_(const KeyType& key, size_t size) const {
@@ -73,8 +81,15 @@ namespace myHashMap {
             return true;
         }
 
+        size_t calculate_new_capacity_() {
+            if (capacity == 0)
+                return 2;
+            if (is_overflow_()) return capacity * 2;
+            return std::max<size_t>(capacity / 2, 2);
+        }
+
         void rehash_() {
-            size_t newCapacity = capacity == 0 ? 2 : (capacity << 1);
+            size_t newCapacity = calculate_new_capacity_();
             std::vector<std::pair<KeyType, ValueType>> dataBuffer(newCapacity);
             std::vector<bool> isEmptyBuffer(newCapacity, true);
             std::vector<bool> isRemovedBuffer(newCapacity, false);
@@ -153,8 +168,8 @@ namespace myHashMap {
         explicit HashMap(Hasher hasher = Hasher()):
             capacity(0), presentSize(0), filled(0), hasher(hasher) {}
 
-        template <typename ForwardIterator>
-        HashMap(ForwardIterator begin, ForwardIterator end, Hasher hasher = Hasher()):
+        template <typename InputIterator>
+        HashMap(InputIterator begin, InputIterator end, Hasher hasher = Hasher()):
             HashMap(hasher) {
             while (begin != end) {
                 insert_((*begin).first, (*begin).second);
@@ -208,6 +223,10 @@ namespace myHashMap {
         void erase(const KeyType& key) {
             if (erase_(key)) {
                 presentSize--;
+                if (need_rehash_()) {
+                    rehash_();
+                    filled = presentSize;
+                }
             }
         }
 
