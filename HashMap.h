@@ -182,7 +182,6 @@ namespace myHashMap {
 
         typedef std::vector<std::pair<KeyType, ValueType>> DataArrayType;
         class iterator : public iterator_base_<DataArrayType> {
-        friend class HashMap;
         using iterator_base_<DataArrayType>::data_;
         using iterator_base_<DataArrayType>::index_;
         using iterator_base_<DataArrayType>::iterator_base_;
@@ -199,7 +198,6 @@ namespace myHashMap {
 
         typedef const std::vector<std::pair<KeyType, ValueType>> ConstDataArrayType;
         class const_iterator : public iterator_base_<ConstDataArrayType> {
-        friend class HashMap;
         using iterator_base_<ConstDataArrayType>::data_;
         using iterator_base_<ConstDataArrayType>::index_;
         using iterator_base_<ConstDataArrayType>::iterator_base_;
